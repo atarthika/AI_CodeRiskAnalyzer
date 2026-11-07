@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Risk Analyzer</title>
+<style>
+:root{--bg:linear-gradient(160deg,#fdf2ff,#eef5ff 55%,#fff7ed);--panel:#fff;--panel2:#faf5ff;--line:#eadcf7;--text:#3b2f4a;--muted:#8a7da0;
+--accent:#8b5cf6;--critical:#f43f5e;--high:#fb923c;--medium:#facc15;--low:#34d399;--code:#f6f0ff;--shadow:0 6px 20px #8b5cf61a}
+[data-theme=dark]{--bg:linear-gradient(160deg,#17131f,#1a1726);--panel:#221c30;--panel2:#2a2339;--line:#3a3050;--text:#f1eaff;--muted:#a99bc4;--code:#171221;--shadow:none}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg) fixed;color:var(--text);font:15px/1.55 ui-rounded,"Nunito","Segoe UI",system-ui,sans-serif}
+header{padding:18px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{margin:0;font-size:22px}header h1 span{color:var(--accent)}
+.tagline{color:var(--muted);font-size:13px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.chip{padding:3px 11px;border-radius:99px;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+.chip.on{color:#059669;border-color:var(--low)}
+main{max-width:1050px;margin:0 auto;padding:10px 20px 80px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;margin-bottom:18px;box-shadow:var(--shadow)}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:8px 16px;border-radius:99px;cursor:pointer;font:inherit}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+textarea{width:100%;height:230px;background:var(--code);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px;font:13px/1.5 ui-monospace,Consolas,Menlo,monospace;resize:vertical}
+select,input[type=range]{accent-color:var(--accent)}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:inherit}
+.row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.row label{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:6px}
+button.primary{background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:0;border-radius:99px;padding:11px 28px;font:700 15px inherit;cursor:pointer;box-shadow:0 6px 16px #8b5cf655}
+button.primary:hover{transform:translateY(-1px)}button.primary:disabled{opacity:.6;cursor:wait}
+button.ghost{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:99px;padding:6px 14px;cursor:pointer;font:inherit;font-size:13px}
+button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:30px;text-align:center;color:var(--muted);background:var(--panel2)}
+.drop.over{border-color:var(--accent)}.drop button{margin:6px 4px 0}
+.picked{margin-top:10px;font-size:13px;color:var(--muted)}
+.error{background:#ffe4e9;border:1px solid var(--critical);color:#9f1239;padding:10px 14px;border-radius:14px;margin-bottom:16px}
+.hidden{display:none}
+.critical{--c:var(--critical)}.high{--c:var(--high)}.medium{--c:var(--medium)}.low{--c:var(--low)}.ai{--c:var(--accent)}
+.verdict{display:flex;gap:18px;align-items:center;border-left:8px solid var(--accent)}
+.vicon{font-size:46px}.verdict h2{margin:0;font-size:21px}.verdict p{margin:4px 0 0;color:var(--muted)}
+.summary{display:grid;grid-template-columns:200px 1fr;gap:22px;align-items:center}
+.gauge{--p:0;--c:var(--low);width:170px;height:170px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--panel2) 0);display:grid;place-items:center;margin:auto}
+.gauge div{width:134px;height:134px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center}
+.gauge b{font-size:34px;line-height:1}.gauge small{color:var(--muted);display:block}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:10px 16px;min-width:105px}
+.stat b{font-size:22px;display:block}.stat span{font-size:12px;color:var(--muted);text-transform:capitalize}
+.stat.critical b{color:var(--critical)}.stat.high b{color:var(--high)}.stat.medium b{color:#ca8a04}.stat.low b{color:#059669}
+.bar-title{margin:16px 0 6px;color:var(--muted);font-size:13px}
+.stack{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--panel2)}.stack i{display:block}
+.topfix h3{margin:0 0 10px;font-size:17px}
+.tf{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border-radius:14px;background:var(--panel2);margin-bottom:8px;cursor:pointer}
+.tf:hover{outline:2px solid var(--accent)}.tf b{flex:1;min-width:160px}
+.help summary{cursor:pointer;font-weight:700}.help ul{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 14px}.toolbar .sp{margin-left:auto}
+.file{background:var(--panel);border:1px solid var(--line);border-radius:18px;margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
+.fhead{display:flex;gap:12px;align-items:center;padding:13px 18px;cursor:pointer;flex-wrap:wrap}
+.fhead:hover{background:var(--panel2)}
+.fname{font-weight:700;word-break:break-all;flex:1;min-width:200px}
+.lang{font-size:11px;text-transform:uppercase;border:1px solid var(--line);border-radius:99px;padding:1px 9px;color:var(--muted)}
+.score{font-weight:700;padding:3px 12px;border-radius:99px;font-size:13px;color:#2b2140}
+.score.HIGH{background:var(--critical);color:#fff}.score.MEDIUM{background:var(--medium)}.score.LOW{background:var(--low)}
+.minor{font-size:12px;color:var(--muted)}
+.fbody{border-top:1px solid var(--line);padding:16px 18px}
+.finding{border-left:5px solid var(--c,var(--line));background:var(--panel2);border-radius:12px;padding:12px 16px;margin-bottom:12px}
+.ftitle{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:700}
+.badge{font-size:11px;text-transform:uppercase;padding:2px 10px;border-radius:99px;color:#2b2140;font-weight:700;background:var(--c)}
+.critical>.ftitle>.badge,.badge.critical{color:#fff}
+.tag{font-size:12px;color:var(--muted);margin-top:6px}.tag a{color:var(--accent);text-decoration:none}
+.loc{margin-left:auto;font-size:12px;color:var(--muted);font-weight:400;cursor:pointer}.loc:hover{color:var(--accent)}
+.snippet{display:block;background:var(--code);border-radius:10px;padding:7px 12px;margin:8px 0;font:12.5px ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+.kv{font-size:14px;margin:4px 0}.kv b{color:var(--muted);font-weight:700;display:inline-block;width:105px}.kv.fix b{color:#059669}
+.src{position:relative;margin-top:12px;background:var(--code);border:1px solid var(--line);border-radius:14px;max-height:420px;overflow:auto;font:12.5px/1.55 ui-monospace,Consolas,Menlo,monospace}
+.src div{display:flex;white-space:pre}.src .n{flex:0 0 52px;text-align:right;padding-right:12px;color:var(--muted);user-select:none}.src .t{padding-right:12px}
+.src .hl-critical{background:#f43f5e26}.src .hl-high{background:#fb923c26}.src .hl-medium{background:#facc1530}.src .hl-low{background:#34d3991f}.src .hl-ai{background:#8b5cf61a}
+.src .flash{outline:2px solid var(--accent)}
+.empty{color:#059669;padding:6px 0}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:30px}
+@media(max-width:700px){.summary{grid-template-columns:1fr}.verdict{flex-direction:column;text-align:center}}
+.ex{margin:10px 0 4px;font-size:14.5px}.ex h5{margin:0 0 3px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.finding details{margin-top:8px;font-size:13px}.finding summary{cursor:pointer;color:var(--accent);font-weight:600}
+.finding .snippet{margin:4px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ Code Risk <span>Analyzer</span></h1>
+  <span class="tagline">Find risky code before it bites 🐛</span>
+  <div class="chips" id="chips"></div>
+  <button class="ghost" id="theme" title="Switch light / dark">🌙</button>
+</header>
+
+<main>
+  <section class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="paste">📝 Paste code</button>
+      <button class="tab" data-tab="upload">📁 Upload files / folder / zip</button>
+    </div>
+
+    <div id="tab-paste">
+      <textarea id="code" spellcheck="false" placeholder="Paste C/C++, Python or SQL code here..."></textarea>
+      <div class="row">
+        <label>Language
+          <select id="lang"><option value="cpp">C / C++</option><option value="python" selected>Python</option><option value="sql">SQL</option></select>
+        </label>
+        <span class="minor">Try a sample:</span>
+        <button class="ghost" data-sample="cpp">C++</button>
+        <button class="ghost" data-sample="python">Python</button>
+        <button class="ghost" data-sample="sql">SQL</button>
+      </div>
+    </div>
+
+    <div id="tab-upload" class="hidden">
+      <div class="drop" id="drop">
+        Drag &amp; drop files here, or
+        <div>
+          <button class="ghost" id="pickFiles">Choose files</button>
+          <button class="ghost" id="pickFolder">Choose folder</button>
+        </div>
+        <div class="minor">.c .cpp .h .hpp .py .sql or a .zip of your project</div>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.hh,.py,.sql,.zip" class="hidden">
+      <input type="file" id="folderInput" webkitdirectory class="hidden">
+      <div class="picked" id="picked"></div>
+    </div>
+
+    <div class="row">
+      <label title="Hide less important issues">Show issues from
+        <select id="minSev"><option value="low">Everything (low and up)</option><option value="medium">Medium and up</option>
+          <option value="high">High and up</option><option value="critical">Critical only</option></select>
+      </label>
+      <label><input type="checkbox" id="useMl" checked> 🤖 Use AI model</label>
+      <label title="Higher = fewer alerts, but more certain ones">AI strictness <input type="range" id="thr" min="0.1" max="0.95" step="0.05" value="0.5"> <span id="thrv">0.50</span></label>
+      <button class="primary" id="scanBtn" style="margin-left:auto">🔍 Scan</button>
+    </div>
+  </section>
+
+  <div id="error" class="error hidden"></div>
+
+  <section id="results" class="hidden">
+    <div class="card verdict" id="verdict"></div>
+    <div class="card">
+      <div class="summary">
+        <div class="gauge" id="gauge"><div><span><b id="gScore">0</b><small id="gLevel">LOW</small></span></div></div>
+        <div>
+          <div class="stats" id="stats"></div>
+          <div class="bar-title">Findings by severity</div>
+          <div class="stack" id="stack"></div>
+          <div class="minor" style="margin-top:10px">Score guide: 0-39 low · 40-69 medium · 70+ high (0 = safe, 100 = very risky)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card topfix hidden" id="topfix"></div>
+    <details class="card help"><summary>💡 How to read this report</summary><ul>
+      <li><b>Risk score</b>: 0 to 100. The higher, the riskier the code.</li>
+      <li><b>Severity</b>: 🔴 critical = easy to exploit, fix now · 🟠 high = fix soon · 🟡 medium = plan a fix · 🟢 low = minor.</li>
+      <li><b>AI areas</b>: blocks the AI model thinks look like known vulnerable code. They can be false alarms, so check them by hand.</li>
+      <li>Click an issue or a <b>📍 line</b> link to jump to the exact code. Results are hints, not guarantees.</li></ul></details>
+    <div class="toolbar">
+      <label class="minor"><input type="checkbox" id="onlyIssues" checked> Only files with issues</label>
+      <label class="minor">Show
+        <select id="kindFilter"><option value="">All types</option><option value="vulnerability">Security holes</option><option value="suspicious">Suspicious code</option><option value="harmful">Harmful code</option></select>
+      </label>
+      <button class="ghost" id="expandAll">Expand all</button>
+      <button class="ghost" id="collapseAll">Collapse all</button>
+      <button class="ghost sp" id="dlJson">⬇ Download JSON report</button>
+    </div>
+    <div id="files"></div>
+  </section>
+</main>
+<footer>Rule engine + trained AI model · results are hints, not guarantees, so always review manually 💜</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const SEVS = ["critical", "high", "medium", "low"];
+const SAMPLES = {
+cpp: `#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+void greet(char *name) {
+    char buf[16];
+    strcpy(buf, name);
+    printf(name);
+}
+
+int main(int argc, char **argv) {
+    char line[64];
+    gets(line);
+    char *p = malloc(32);
+    free(p);
+    free(p);
+    char cmd[128];
+    sprintf(cmd, "ls %s", argv[1]);
+    system(cmd);
+    int n = atoi(argv[2]);
+    return rand() % n;
+}
+`,
+python: `import os, pickle, hashlib, requests, sqlite3
+
+API_KEY = "sk-live-12345678"
+
+def login(user, pwd):
+    db = sqlite3.connect("app.db")
+    q = f"SELECT * FROM users WHERE name='{user}'"
+    db.execute(q)
+    return hashlib.md5(pwd.encode()).hexdigest()
+
+def run(cmd):
+    os.system("ping " + cmd)
+    return eval(cmd)
+
+data = pickle.loads(open("data.bin", "rb").read())
+r = requests.get("https://example.com", verify=False)
+`,
+sql: `CREATE USER admin IDENTIFIED BY 'P@ssw0rd123';
+GRANT ALL PRIVILEGES ON *.* TO PUBLIC;
+SELECT * FROM users WHERE name = 'x' OR 1=1;
+DELETE FROM orders;
+DROP TABLE customers;
+EXEC xp_cmdshell 'dir';
+`};
+
+let picked = [];       // [{file, name}]
+let lastReport = null;
+let activeTab = "paste";
+
+/* ---------- safe DOM helper (never uses innerHTML, so scanned code can't inject HTML) ---------- */
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) e.append(kid);
+  return e;
+}
+
+/* ---------- status chips ---------- */
+async function loadStatus() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    const box = $("#chips"); box.replaceChildren();
+    box.append(el("span", { class: "chip on" }, `${s.rules} rules`));
+    for (const l of s.languages) {
+      const on = s.models.includes(l);
+      box.append(el("span", { class: "chip" + (on ? " on" : "") }, `${l.toUpperCase()} AI ${on ? "✓" : "—"}`));
+    }
+  } catch { /* server not ready */ }
+}
+
+/* ---------- input tabs ---------- */
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  activeTab = b.dataset.tab;
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === b));
+  $("#tab-paste").classList.toggle("hidden", activeTab !== "paste");
+  $("#tab-upload").classList.toggle("hidden", activeTab !== "upload");
+});
+document.querySelectorAll("[data-sample]").forEach(b => b.onclick = () => {
+  $("#code").value = SAMPLES[b.dataset.sample];
+  $("#lang").value = b.dataset.sample;
+});
+$("#thr").oninput = e => $("#thrv").textContent = (+e.target.value).toFixed(2);
+
+function renderPicked() {
+  $("#picked").textContent = picked.length ? `${picked.length} file(s) selected` : "";
+}
+$("#pickFiles").onclick = () => $("#fileInput").click();
+$("#pickFolder").onclick = () => $("#folderInput").click();
+$("#fileInput").onchange = e => { picked = [...e.target.files].map(f => ({ file: f, name: f.name })); renderPicked(); };
+$("#folderInput").onchange = e => {
+  picked = [...e.target.files].map(f => ({ file: f, name: f.webkitRelativePath || f.name })); renderPicked();
+};
+const drop = $("#drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => {
+  picked = [...e.dataTransfer.files].map(f => ({ file: f, name: f.name })); renderPicked();
+});
+
+/* ---------- scan ---------- */
+function showError(msg) {
+  const b = $("#error");
+  b.textContent = msg || "";
+  b.classList.toggle("hidden", !msg);
+}
+
+$("#scanBtn").onclick = async () => {
+  showError("");
+  const fd = new FormData();
+  if (activeTab === "paste") {
+    if (!$("#code").value.trim()) return showError("Paste some code first (or load a sample).");
+    fd.append("code", $("#code").value);
+    fd.append("lang", $("#lang").value);
+  } else {
+    if (!picked.length) return showError("Choose files, a folder or a .zip first.");
+    picked.forEach(p => fd.append("files", p.file, p.name));
+  }
+  fd.append("min_severity", $("#minSev").value);
+  fd.append("threshold", $("#thr").value);
+  fd.append("use_ml", $("#useMl").checked ? "1" : "0");
+
+  const btn = $("#scanBtn");
+  btn.disabled = true; btn.textContent = "Scanning… ⏳";
+  try {
+    const res = await fetch("/api/scan", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Scan failed");
+    lastReport = data;
+    renderResults();
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "🔍 Scan";
+  }
+};
+
+/* ---------- render ---------- */
+const LEVEL_COLOR = { HIGH: "var(--critical)", MEDIUM: "var(--medium)", LOW: "var(--low)" };
+
+function renderResults() {
+  const d = lastReport;
+  $("#results").classList.remove("hidden");
+
+  const g = $("#gauge");
+  g.style.setProperty("--p", d.project_risk);
+  g.style.setProperty("--c", LEVEL_COLOR[d.risk_level]);
+  $("#gScore").textContent = d.project_risk;
+  $("#gLevel").textContent = d.risk_level + " RISK";
+
+  const stats = $("#stats"); stats.replaceChildren();
+  stats.append(el("div", { class: "stat" }, el("b", {}, d.files_scanned), el("span", {}, "📄 files")));
+  for (const s of SEVS) stats.append(el("div", { class: "stat " + s }, el("b", {}, d.counts[s] || 0), el("span", {}, SEV_ICON[s] + " " + s)));
+
+  const total = SEVS.reduce((a, s) => a + (d.counts[s] || 0), 0);
+  const stack = $("#stack"); stack.replaceChildren();
+  for (const s of SEVS) {
+    const n = d.counts[s] || 0;
+    if (n) stack.append(el("i", { style: `width:${(n / total) * 100}%;background:var(--${s})`, title: `${s}: ${n}` }));
+  }
+  renderVerdict(d); renderTopFix(d); renderFiles();
+  $("#results").scrollIntoView({ behavior: "smooth" });
+}
+
+function renderFiles() {
+  const d = lastReport, kind = $("#kindFilter").value, only = $("#onlyIssues").checked;
+  const box = $("#files"); box.replaceChildren(); cards.clear();
+  let shown = 0;
+  for (const f of d.files) {
+    const findings = f.findings.filter(x => !kind || x.kind === kind);
+    const hasIssues = findings.length || (!kind && f.ai_regions.length);
+    if (only && !hasIssues) continue;
+    box.append(fileCard(f, findings)); shown++;
+  }
+  if (!shown) box.append(el("div", { class: "card empty" }, "✅ No issues found for the current filters."));
+}
+
+const SEV_ICON = { critical: "🔴", high: "🟠", medium: "🟡", low: "🟢" };
+const KIND_LABEL = { vulnerability: "Security hole", suspicious: "Suspicious code", harmful: "Harmful code" };
+const cards = new Map();
+
+function fileCard(f, findings) {
+  const body = el("div", { class: "fbody hidden" });
+  cards.set(f.file, { body, f });
+  if (!findings.length && !f.ai_regions.length) body.append(el("div", { class: "empty" }, "✅ No issues found in this file."));
+  findings.forEach(fd => body.append(findingCard(fd, f)));
+  f.ai_regions.forEach(r => body.append(el("div", { class: "finding ai" },
+    el("div", { class: "ftitle" }, el("span", { class: "badge" }, "🤖 AI"), "The AI spotted a suspicious area",
+      el("span", { class: "loc", onclick: () => jump(f, body, r.start_line) }, `📍 lines ${r.start_line}-${r.end_line}`)),
+    el("div", { class: "kv" }, el("b", {}, "What's wrong"), r.explanation),
+    el("div", { class: "kv" }, el("b", {}, "AI confidence"), `${Math.round(r.probability * 100)}% (could be a false alarm)`),
+    el("div", { class: "kv fix" }, el("b", {}, "How to check"), r.remediation))));
+
+  const srcBtn = el("button", { class: "ghost" }, "👀 View source");
+  const srcBox = el("div", { class: "src hidden" });
+  srcBtn.onclick = e => {
+    e.stopPropagation();
+    if (!srcBox.childElementCount) buildSource(srcBox, f);
+    const hide = !srcBox.classList.contains("hidden");
+    srcBox.classList.toggle("hidden", hide);
+    srcBtn.textContent = hide ? "👀 View source" : "🙈 Hide source";
+  };
+  const how = f.ai_score != null
+    ? `Score = half from rule checks (${f.rule_score}) + half from the AI model (${f.ai_score}).`
+    : `Score comes from rule checks only (${f.rule_score}).`;
+  body.append(el("div", { style: "margin-top:6px" }, srcBtn), srcBox, el("div", { class: "minor", style: "margin-top:10px" }, "ℹ️ " + how));
+
+  const dots = SEVS.filter(s => findings.some(x => x.severity === s))
+    .map(s => `${SEV_ICON[s]} ${findings.filter(x => x.severity === s).length}`).join("  ");
+  const head = el("div", { class: "fhead", onclick: () => body.classList.toggle("hidden") },
+    el("span", { class: "fname" }, "📄 " + f.file),
+    el("span", { class: "lang" }, f.language),
+    el("span", { class: "minor" }, findings.length ? `${findings.length} issue(s)  ${dots}` : "no issues"),
+    el("span", { class: "score " + f.risk_level, title: "0 = safe, 100 = very risky" }, `${f.risk_score} · ${f.risk_level.toLowerCase()} risk`));
+  const card = el("div", { class: "file" }, head, body);
+  if (findings.length && f.risk_level !== "LOW") body.classList.remove("hidden");
+  return card;
+}
+
+const SPILL = "Extra data spills into other memory. That can crash the program or let an attacker run their own code.";
+const INJ = "An attacker could read, change or delete your data, or take control of the machine.";
+const HELP = {
+  CPP_GETS: ["This function reads typed text but never checks how much. It is like pouring a big jug into a small cup: it overflows.", SPILL, "fgets(buf, sizeof(buf), stdin);"],
+  CPP_UNBOUNDED_COPY: ["Copies text into a box without checking that the box is big enough.", SPILL, "strncpy(dest, src, sizeof(dest) - 1);"],
+  CPP_SPRINTF: ["Builds a message in a box without checking the box size.", SPILL, 'snprintf(buf, sizeof(buf), "%s", text);'],
+  CPP_SCANF_S: ["Reads a word with no length limit, so a very long word overflows the box.", SPILL, 'scanf("%63s", buf);'],
+  CPP_FORMAT_STRING: ["The text being printed comes from a variable. If a user controls it, they can sneak in special codes.", "An attacker could read secret memory or crash the program.", 'printf("%s", text);'],
+  CPP_CMD_INJECT: ["Runs a command on the computer. If user input is part of it, someone can add their own commands.", INJ, "Avoid system(). Call the program directly with fixed arguments and check the input first."],
+  CPP_EXEC: ["Starts another program. Risky if the program name or its arguments come from users.", "It could be tricked into running something harmful.", "Use a fixed full path and validate every argument."],
+  CPP_ALLOCA: ["Takes memory from a small, limited area. A big request can crash the program.", "The program can crash or be abused.", "std::vector<char> buf(n);"],
+  CPP_TEMPFILE: ["Creates a temporary file name that others can guess before you use it.", "An attacker can plant a file there and trick your program.", "mkstemp(template);"],
+  CPP_RAND: ["rand() is predictable, not truly random.", "Not safe for passwords, tokens or keys: attackers can guess them.", "std::random_device rd; // or a secure random source"],
+  CPP_ATOI: ["Turns text into a number but cannot tell you when the text is not a number.", "Bad input silently becomes 0 and can break your logic.", "strtol(text, &end, 10); // then check 'end'"],
+  CPP_MEMCPY: ["Copies raw memory. A wrong size overwrites other data.", SPILL, "Check that size <= destination size before copying."],
+  CPP_PROC_INJECT: ["Code that pushes instructions into another running program. Malware often does this.", "Used to hide harmful code inside trusted programs.", "Remove it unless you are building a debugger or security tool."],
+  CPP_KEYLOG: ["Records which keys are pressed. Keyloggers use this to steal passwords.", "Private information like passwords can be stolen.", "Remove it unless users clearly know and agree."],
+  CPP_SQL_CONCAT: ["A database question is made by gluing text together, so user input can change the question.", "SQL injection: an attacker can read or delete the whole database.", "Use a prepared statement with ? placeholders."],
+  CPP_DOUBLE_FREE: ["Memory is given back twice, like returning the same library book two times.", "Can crash the program or let attackers corrupt memory.", "free(p); p = NULL;"],
+  CPP_UAF: ["Memory is used after it was given back, like using a hotel room after checkout.", "Can crash the program or let attackers take control.", "Set the pointer to NULL after free() and never use it again."],
+  PY_EVAL: ["eval/exec runs text as if it were code. If a user controls that text, they can run any code.", INJ, "ast.literal_eval(text)  # only reads plain data"],
+  PY_CMD_INJECT: ["Runs a computer command. User input can sneak in extra commands.", INJ, 'subprocess.run(["ping", host])'],
+  PY_DESERIALIZE: ["Loading data with pickle or yaml can secretly run code hidden inside that data.", "Opening a bad file can give an attacker control.", "json.loads(data)  /  yaml.safe_load(text)"],
+  PY_SQL_INJECT: ["A database question is made by gluing text together, so user input can change the question.", "SQL injection: an attacker can read or delete the whole database.", 'cur.execute("SELECT * FROM users WHERE name=?", (name,))'],
+  PY_TLS_OFF: ["Turns off the check that you are talking to the real website.", "Someone in the middle can read or change the data.", "requests.get(url)  # keep verification on"],
+  PY_WEAK_HASH: ["MD5 and SHA1 are old and easy to break.", "Stored passwords can be cracked quickly.", "hashlib.sha256(...)  # for passwords use bcrypt or argon2"],
+  PY_DEBUG: ["Debug mode shows internal details and can let attackers run code.", "Leaks secrets and may allow remote code execution.", "app.run(debug=False)"],
+  PY_TEMPFILE: ["Creates a temporary file name that others can guess before you use it.", "An attacker can plant a file there and trick your program.", "tempfile.mkstemp()"],
+  PY_TAR: ["Extracting an archive can write files anywhere if the archive is malicious.", "Important files could be overwritten.", "Check every file path inside the archive before extracting."],
+  PY_SSTI: ["Lets user text become part of a web page template, where it can run.", INJ, 'render_template("page.html", name=name)'],
+  PY_RANDOM: ["The random module is predictable.", "Not safe for passwords, tokens or keys.", "secrets.token_hex(16)"],
+  PY_BIND_ALL: ["The server listens to the whole network, not just your own computer.", "Strangers on the network could reach it.", 'app.run(host="127.0.0.1")'],
+  PY_NO_TIMEOUT: ["The request may wait forever and freeze your program.", "Your app can hang.", "requests.get(url, timeout=5)"],
+  PY_DESTRUCTIVE: ["Deletes files or folders. A wrong path means lost data.", "Important data can be deleted by mistake or by an attacker.", "Double-check the path and ask for confirmation first."],
+  PY_OBFUSCATION: ["The code is hidden or scrambled. Malware often does this to avoid being noticed.", "Hidden code may do harmful things.", "Replace it with plain, readable code."],
+  PY_KEYLOG: ["Records which keys are pressed. Keyloggers use this to steal passwords.", "Private information like passwords can be stolen.", "Remove it unless users clearly know and agree."],
+  SQL_XP_CMDSHELL: ["Lets the database run commands on the computer itself.", "Whoever gets into the database can control the server.", "EXEC sp_configure 'xp_cmdshell', 0;  -- keep it disabled"],
+  SQL_DYNAMIC: ["A database question is built from text pieces, so input can change it.", "SQL injection: data can be stolen or deleted.", "Use parameters, e.g. WHERE name = @name"],
+  SQL_GRANT_ALL: ["Gives everyone full power over the database.", "Anyone can read, change or delete everything.", "GRANT SELECT ON orders TO app_user;"],
+  SQL_PLAIN_PASS: ["A password is written in plain text in the code.", "Anyone who sees the file knows the password.", "Keep passwords outside the code, in a secret store."],
+  SQL_PAYLOAD: ["This looks like a typical SQL injection attack text, such as OR 1=1.", "It could trick the database into skipping its checks.", "Find out where this text comes from and remove it."],
+  SQL_DESTRUCTIVE: ["Deletes a table or data.", "Data can be lost forever.", "Take a backup first and add a WHERE condition."],
+  SQL_NO_WHERE: ["Changes or deletes every row because there is no WHERE condition.", "All records can be wiped out by mistake.", "DELETE FROM orders WHERE id = 5;"],
+  SQL_SELECT_STAR: ["Fetches every column, even ones you do not need or that are private.", "Wastes time and may expose private columns.", "SELECT name, email FROM users;"],
+  SECRET: ["A password or key is written directly in the code. Anyone who can see the code can use it.", "Attackers can log in as you or use your services.", 'os.environ["API_KEY"]  # keep secrets outside the code'],
+  AWS_KEY: ["A cloud access key is written in the code.", "Others can use your cloud account and you pay the bill.", "Revoke this key now, create a new one and load it from the environment."],
+  PRIVATE_KEY: ["A secret key file is pasted into the code.", "Anyone with it can pretend to be you or read protected data.", "Remove it from the code and generate a new key."],
+  REVERSE_SHELL: ["Code that lets someone remotely control this computer. Hackers use it.", "Full remote control of the machine.", "Remove it and find out where it came from."],
+  DESTRUCTIVE_CMD: ["A command that wipes files or whole disks.", "Everything on the machine can be destroyed.", "Remove it."]
+};
+
+function findingCard(fd, f) {
+  const n = (fd.cwe.match(/\d+/) || [""])[0], h = HELP[fd.rule];
+  const tech = [el("div", { class: "kv" }, el("b", {}, "Technical"), fd.explanation),
+    el("div", { class: "kv fix" }, el("b", {}, "Official fix"), fd.remediation),
+    el("div", { class: "tag" }, (KIND_LABEL[fd.kind] || fd.kind) + " · ",
+      n ? el("a", { href: `https://cwe.mitre.org/data/definitions/${n}.html`, target: "_blank", rel: "noopener" }, fd.cwe + " ↗") : fd.cwe)];
+  const ex = (t, body) => el("div", { class: "ex" }, el("h5", {}, t), body);
+  return el("div", { class: "finding " + fd.severity },
+    el("div", { class: "ftitle" }, el("span", { class: "badge" }, SEV_ICON[fd.severity] + " " + fd.severity), fd.title,
+      el("span", { class: "loc", onclick: e => jump(f, e.target.closest(".fbody"), fd.line) }, `📍 line ${fd.line}`)),
+    el("code", { class: "snippet" }, fd.code),
+    h ? [ex("💬 In simple words", h[0]), ex("⚠️ What could happen", h[1]), ex("✅ Safer way", el("code", { class: "snippet" }, h[2])),
+      el("details", {}, el("summary", {}, "🔧 Technical details"), tech)]
+      : [ex("💬 What's wrong", fd.explanation), ex("✅ How to fix", fd.remediation), tech[2]]);
+}
+
+function renderVerdict(d) {
+  const c = d.counts, serious = (c.critical || 0) + (c.high || 0);
+  const total = SEVS.reduce((a, s) => a + (c[s] || 0), 0);
+  const ai = d.files.reduce((a, f) => a + f.ai_regions.length, 0);
+  const bad = d.files.filter(f => f.findings.length || f.ai_regions.length).length;
+  let icon = "🎉", head = "Looking good! No problems found", sub = `We checked ${d.files_scanned} file(s) and found nothing risky.`;
+  if (d.risk_level === "HIGH") { icon = "😬"; head = "High risk: please fix these before using this code"; }
+  else if (d.risk_level === "MEDIUM") { icon = "🤔"; head = "Some things need your attention"; }
+  else if (total || ai) { icon = "🙂"; head = "Low risk, just a few things to tidy up"; }
+  if (total) sub = `Found ${total} issue(s) in ${bad} of ${d.files_scanned} file(s)` + (serious ? `, ${serious} of them serious. Start with "Fix these first" below.` : ". None are serious.");
+  else if (ai) sub = `The AI model marked ${ai} area(s) worth a quick look.`;
+  $("#verdict").replaceChildren(el("div", { class: "vicon" }, icon), el("div", {}, el("h2", {}, head), el("p", {}, sub)));
+}
+
+function renderTopFix(d) {
+  const all = [];
+  d.files.forEach(f => f.findings.forEach(x => all.push({ f, x })));
+  all.sort((a, b) => SEVS.indexOf(a.x.severity) - SEVS.indexOf(b.x.severity));
+  const box = $("#topfix");
+  box.classList.toggle("hidden", !all.length);
+  if (!all.length) return;
+  box.replaceChildren(el("h3", {}, "🛠️ Fix these first"), ...all.slice(0, 5).map(({ f, x }) =>
+    el("div", { class: "tf", onclick: () => goTo(f.file, x.line) },
+      el("span", { class: "badge " + x.severity }, SEV_ICON[x.severity] + " " + x.severity), el("b", {}, x.title),
+      el("span", { class: "minor" }, `${f.file.split("/").pop()} · line ${x.line}`))));
+  if (all.length > 5) box.append(el("div", { class: "minor" }, `+ ${all.length - 5} more in the file list below`));
+}
+
+function goTo(name, line) {
+  if (!cards.has(name)) { $("#kindFilter").value = ""; $("#onlyIssues").checked = true; renderFiles(); }
+  const c = cards.get(name);
+  if (!c) return;
+  c.body.classList.remove("hidden");
+  c.body.parentElement.scrollIntoView({ behavior: "smooth", block: "start" });
+  jump(c.f, c.body, line);
+}
+
+const root = document.documentElement;
+function setTheme(t) {
+  root.dataset.theme = t; $("#theme").textContent = t === "dark" ? "☀️" : "🌙";
+  try { localStorage.setItem("theme", t); } catch { }
+}
+setTheme((() => { try { return localStorage.getItem("theme"); } catch { } })() || (matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light"));
+$("#theme").onclick = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark");
+
+function buildSource(box, f) {
+  const hl = {};
+  f.ai_regions.forEach(r => { for (let i = r.start_line; i <= r.end_line; i++) hl[i] = hl[i] || "hl-ai"; });
+  f.findings.forEach(x => hl[x.line] = "hl-" + x.severity);   // rule findings win over AI shading
+  f.source.split("\n").forEach((line, i) => {
+    box.append(el("div", { class: hl[i + 1] || "", "data-ln": i + 1 }, el("span", { class: "n" }, i + 1), el("span", { class: "t" }, line)));
+  });
+}
+
+function jump(f, body, line) {
+  const srcBox = body.querySelector(".src");
+  if (!srcBox.childElementCount) buildSource(srcBox, f);
+  srcBox.classList.remove("hidden");
+  const row = srcBox.querySelector(`[data-ln="${line}"]`);
+  if (!row) return;
+  srcBox.scrollTop = row.offsetTop - 120;
+  row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1500);
+}
+
+$("#onlyIssues").onchange = $("#kindFilter").onchange = () => lastReport && renderFiles();
+$("#expandAll").onclick = () => document.querySelectorAll(".fbody").forEach(b => b.classList.remove("hidden"));
+$("#collapseAll").onclick = () => document.querySelectorAll(".fbody").forEach(b => b.classList.add("hidden"));
+$("#dlJson").onclick = () => {
+  if (!lastReport) return;
+  const slim = { project_risk: lastReport.project_risk, files: lastReport.files.map(({ source, line_count, ...r }) => r) };
+  const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(slim, null, 2)], { type: "application/json" })), download: "report.json" });
+  a.click(); URL.revokeObjectURL(a.href);
+};
+
+loadStatus();
+</script>
+</body>
+</html>
