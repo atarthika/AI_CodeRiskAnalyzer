@@ -57,7 +57,6 @@ Datasets are not stored in this repo because of their size. Download them from K
 | `Analyzer.py` | Rule engine, AI model, training and command line |
 | `static/index.html` | Web interface |
 | `models/` | Trained AI models |
-| `sample_project/` | Small project to test the scanner |
 | `requirements.txt` | Python dependencies |
 
 > Results are hints, not guarantees. Always review findings manually.
